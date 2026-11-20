@@ -22,6 +22,8 @@ from src import (
     MODELS_DIR,
     OUTPUTS_DIR,
     RANDOM_STATE,
+    RAW_NUMERICAL_FEATURES,
+    RAW_CATEGORICAL_FEATURES,
 )
 from src.data_preprocessing import (
     build_preprocessor,
@@ -268,6 +270,10 @@ def train_and_save_pipeline(
         raise RuntimeError("Reloaded model prediction does not match original model prediction.")
 
     metadata = {
+        "schema_version": 2,
+        "input_columns": RAW_NUMERICAL_FEATURES + RAW_CATEGORICAL_FEATURES,
+        "target_column": "premium_price",
+        "currency": "INR",
         "best_model_name": best_model_name,
         "use_engineered_features": use_engineered,
         "random_state": RANDOM_STATE,
