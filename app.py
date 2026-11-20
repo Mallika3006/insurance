@@ -185,14 +185,16 @@ def render_prediction_page() -> None:
                 region=region,
                 model=model,
             )
-            estimate = result["estimated_annual_charges"]
+            estimate_inr = result["estimated_annual_charges_inr"]
+            conversion_rate = result["conversion_rate_usd_to_inr"]
             validated = result["validated_input"]
 
-            st.success(f"### Estimated Annual Insurance Charges: **${estimate:,.2f}**")
+            st.success(f"### Estimated Annual Insurance Premium: **₹{estimate_inr:,.2f}**")
             st.caption(
-                "Note: This figure is a Machine Learning estimate generated from historical dataset "
-                "patterns. It is intended for educational purposes only and is not an actual "
-                "insurance quote."
+                f"Converted from the model estimate using 1 USD = ₹{conversion_rate:.2f} "
+                "(reference rate dated 20 Nov 2026). The underlying dataset contains US insurance "
+                "costs, so this is only an INR-converted equivalent—not an estimate of actual "
+                "Indian insurance premiums. For educational purposes only; not an insurance quote."
             )
 
             st.subheader("Entered Information Summary")
