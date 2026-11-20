@@ -18,7 +18,7 @@ def get_model():
         if not DEFAULT_DATA_PATH.exists():
             raise FileNotFoundError(f"Bundled Indian dataset is missing: {DEFAULT_DATA_PATH}")
         with st.spinner("Training the Indian health-insurance model for the first time. This may take a few minutes..."):
-            train_and_save_pipeline()
+            train_and_save_pipeline(run_eda_plots=False, quick_mode=True)
     return load_trained_model()
 
 page=st.sidebar.radio("Navigation",["Home","Predict Premium","Model Insights"])
