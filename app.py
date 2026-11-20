@@ -2,7 +2,8 @@
 import json
 from pathlib import Path
 import streamlit as st
-from src import DEFAULT_MODEL_PATH, EDA_OUTPUT_DIR, EVAL_OUTPUT_DIR, OUTPUTS_DIR
+from src import DEFAULT_DATA_PATH, DEFAULT_MODEL_PATH, EDA_OUTPUT_DIR, EVAL_OUTPUT_DIR, OUTPUTS_DIR
+from src.model_training import train_and_save_pipeline
 from src.prediction import load_trained_model, predict_insurance_charge
 
 st.set_page_config(page_title="Indian Health Insurance Premium Prediction",page_icon="🇮🇳",layout="wide")
@@ -11,6 +12,13 @@ st.caption("Educational ML estimate based on an Indian-oriented public dataset. 
 
 @st.cache_resource
 def get_model():
+    # A fresh clone includes the Indian CSV but not generated model binaries.
+    # Train once automatically on first prediction, then cache the loaded model.
+    if not DEFAULT_MODEL_PATH.exists():
+        if not DEFAULT_DATA_PATH.exists():
+            raise FileNotFoundError(f"Bundled Indian dataset is missing: {DEFAULT_DATA_PATH}")
+        with st.spinner("Training the Indian health-insurance model for the first time. This may take a few minutes..."):
+            train_and_save_pipeline()
     return load_trained_model()
 
 page=st.sidebar.radio("Navigation",["Home","Predict Premium","Model Insights"])

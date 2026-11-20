@@ -12,7 +12,7 @@ An end-to-end supervised Machine Learning regression project that estimates an a
 - **Target:** `PremiumPrice`, used directly as INR.
 - **No currency conversion:** the old US Medical Cost dataset is not compatible with this project.
 
-Download `Medicalpremium.csv`, rename it to `insurance.csv`, and put it in `data/insurance.csv`. Follow [data/README.md](data/README.md). The application deliberately rejects the old US CSV rather than silently creating fake or irrelevant features.
+The Indian dataset is included at `data/insurance.csv`, so a fresh clone does not require a separate Kaggle download. The application deliberately rejects the old US CSV rather than silently creating fake or irrelevant features.
 
 | Input | Meaning |
 |---|---|
@@ -51,14 +51,15 @@ python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-Download the Indian CSV as described above, then run:
+Run the application:
 
 ```cmd
-python -m src.model_training
 streamlit run app.py
 ```
 
-If you previously ran the US version locally, replace `data/insurance.csv` with the Indian CSV and delete the old `models/best_model.joblib` and `models/model_metadata.json` before retraining. The new training run recreates both files.
+On the first visit to **Predict Premium**, the application automatically trains the model from the bundled Indian dataset and saves the pipeline and metadata in `models/`. This first training run may take a few minutes. Later launches reuse the saved model. To retrain manually after deleting the model, run `python -m src.model_training`.
+
+If you previously ran the US version locally, pull the latest changes. The incompatible US model artifacts are not included; the app will train a fresh Indian model automatically.
 
 ## Limitations
 
