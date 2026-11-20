@@ -1,182 +1,96 @@
-"""Data loading, inspection, cleaning, and preprocessing utilities."""
-
+"""Loading, validation, cleaning, splitting and preprocessing for Indian premium data."""
 from __future__ import annotations
-
 from pathlib import Path
 from typing import Dict, List, Tuple
-
-import numpy as np
 import pandas as pd
 from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from src import DEFAULT_DATA_PATH, RANDOM_STATE, REQUIRED_COLUMNS, TARGET_COLUMN, RAW_NUMERICAL_FEATURES, RAW_CATEGORICAL_FEATURES
 
-from src import DEFAULT_DATA_PATH, RANDOM_STATE, REQUIRED_COLUMNS, TARGET_COLUMN
-
-RAW_NUMERICAL_FEATURES: List[str] = ["age", "bmi", "children"]
-RAW_CATEGORICAL_FEATURES: List[str] = ["sex", "smoker", "region"]
-
+COLUMN_RENAME = {
+    "Age": "age", "Diabetes": "diabetes",
+    "BloodPressureProblems": "blood_pressure_problems",
+    "AnyTransplants": "any_transplants",
+    "AnyChronicDiseases": "any_chronic_diseases",
+    "Height": "height_cm", "Weight": "weight_kg",
+    "KnownAllergies": "known_allergies",
+    "HistoryOfCancerInFamily": "family_cancer_history",
+    "NumberOfMajorSurgeries": "major_surgeries",
+    "PremiumPrice": "premium_price",
+}
 
 def load_dataset(filepath: Path | str = DEFAULT_DATA_PATH) -> pd.DataFrame:
-    """Load the Medical Cost Personal Dataset CSV and validate its schema."""
     path = Path(filepath)
     if not path.exists():
         raise FileNotFoundError(
-            f"Dataset not found at '{path}'.\n"
-            "Please download 'insurance.csv' from Kaggle "
-            "(https://www.kaggle.com/datasets/mirichoi0218/insurance) "
-            "and place it in the 'data/' directory. See data/README.md for details."
+            f"Indian dataset not found: {path}. Download Medicalpremium.csv from "
+            "https://www.kaggle.com/datasets/tejashvi14/medical-insurance-premium-prediction "
+            "and save it as data/insurance.csv."
         )
-
     df = pd.read_csv(path)
-    missing_cols = [col for col in REQUIRED_COLUMNS if col not in df.columns]
-    if missing_cols:
-        raise ValueError(
-            f"Dataset is missing required columns: {missing_cols}. "
-            f"Expected columns: {REQUIRED_COLUMNS}."
-        )
-    return df
-
+    df = df.rename(columns=COLUMN_RENAME)
+    missing = [c for c in REQUIRED_COLUMNS if c not in df.columns]
+    if missing:
+        raise ValueError(f"Dataset schema mismatch. Missing columns: {missing}. "
+                         f"Expected columns: {REQUIRED_COLUMNS}")
+    return df[REQUIRED_COLUMNS].copy()
 
 def inspect_dataset(df: pd.DataFrame) -> Dict[str, object]:
-    """Return a structured summary of dataset shape, types, missing values, and duplicates."""
-    return {
-        "shape": df.shape,
-        "columns": list(df.columns),
-        "dtypes": {col: str(dtype) for col, dtype in df.dtypes.items()},
-        "missing_values": df.isnull().sum().to_dict(),
-        "duplicate_rows": int(df.duplicated().sum()),
-        "head": df.head(5),
-        "tail": df.tail(5),
-        "summary_stats": df.describe(include="all"),
-    }
-
+    return {"shape": df.shape, "columns": list(df.columns),
+            "dtypes": {c: str(t) for c, t in df.dtypes.items()},
+            "missing_values": df.isna().sum().to_dict(),
+            "duplicate_rows": int(df.duplicated().sum()),
+            "summary_stats": df.describe(include="all")}
 
 def detect_outliers_iqr(df: pd.DataFrame, columns: List[str] | None = None) -> Dict[str, Dict[str, float]]:
-    """Identify potential outliers in numerical columns using the 1.5 * IQR rule."""
-    if columns is None:
-        columns = ["age", "bmi", "children", "charges"]
-
-    outlier_report: Dict[str, Dict[str, float]] = {}
+    columns = columns or RAW_NUMERICAL_FEATURES + [TARGET_COLUMN]
+    report = {}
     for col in columns:
-        if col not in df.columns or not pd.api.types.is_numeric_dtype(df[col]):
+        if col not in df or not pd.api.types.is_numeric_dtype(df[col]):
             continue
-        q1 = float(df[col].quantile(0.25))
-        q3 = float(df[col].quantile(0.75))
+        q1, q3 = df[col].quantile([.25, .75])
         iqr = q3 - q1
-        lower_bound = q1 - 1.5 * iqr
-        upper_bound = q3 + 1.5 * iqr
-        count = int(((df[col] < lower_bound) | (df[col] > upper_bound)).sum())
-        outlier_report[col] = {
-            "q1": round(q1, 2),
-            "q3": round(q3, 2),
-            "iqr": round(iqr, 2),
-            "lower_bound": round(lower_bound, 2),
-            "upper_bound": round(upper_bound, 2),
-            "outlier_count": count,
-            "outlier_pct": round((count / len(df)) * 100, 2) if len(df) else 0.0,
-        }
-    return outlier_report
-
+        count = int(((df[col] < q1 - 1.5 * iqr) | (df[col] > q3 + 1.5 * iqr)).sum())
+        report[col] = {"q1": float(q1), "q3": float(q3), "iqr": float(iqr), "outlier_count": count}
+    return report
 
 def clean_dataset(df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, object]]:
-    """Clean the dataset: normalize text, remove exact duplicates, handle missing values, and audit outliers.
-
-    Note on outliers: High insurance charges and high BMI values in medical data
-    represent real high-risk individuals (especially smokers) rather than sensor errors,
-    so outlier records are retained and documented rather than blindly dropped.
-    """
-    cleaned = df.copy()
-    initial_rows = len(cleaned)
-
-    # Normalize string columns to lowercase and strip whitespace for consistent encoding
+    cleaned = df.rename(columns=COLUMN_RENAME).copy()
+    missing = [c for c in REQUIRED_COLUMNS if c not in cleaned.columns]
+    if missing:
+        raise ValueError(f"Missing required columns: {missing}")
+    cleaned = cleaned[REQUIRED_COLUMNS]
+    for col in RAW_NUMERICAL_FEATURES + [TARGET_COLUMN]:
+        cleaned[col] = pd.to_numeric(cleaned[col], errors="coerce")
     for col in RAW_CATEGORICAL_FEATURES:
-        if col in cleaned.columns:
-            cleaned[col] = cleaned[col].astype(str).str.strip().str.lower()
+        cleaned[col] = pd.to_numeric(cleaned[col], errors="coerce")
+    before = len(cleaned)
+    cleaned = cleaned.dropna(subset=[TARGET_COLUMN])
+    cleaned = cleaned.drop_duplicates().reset_index(drop=True)
+    report = {"rows_before": before, "rows_after": len(cleaned),
+              "duplicates_removed": before - len(cleaned) - int(df[TARGET_COLUMN].isna().sum()) if TARGET_COLUMN in df else 0,
+              "missing_values_after_cleaning": cleaned.isna().sum().to_dict(),
+              "outliers": detect_outliers_iqr(cleaned)}
+    return cleaned, report
 
-    # Check and drop rows where target variable is missing
-    missing_before = cleaned.isnull().sum().to_dict()
-    target_missing = int(cleaned[TARGET_COLUMN].isnull().sum())
-    if target_missing > 0:
-        cleaned = cleaned.dropna(subset=[TARGET_COLUMN])
+def split_features_target(df: pd.DataFrame):
+    return df.drop(columns=[TARGET_COLUMN]), df[TARGET_COLUMN]
 
-    # Handle missing feature values if any are present
-    for col in RAW_NUMERICAL_FEATURES:
-        if cleaned[col].isnull().any():
-            cleaned[col] = cleaned[col].fillna(cleaned[col].median())
-    for col in RAW_CATEGORICAL_FEATURES:
-        if cleaned[col].isnull().any():
-            cleaned[col] = cleaned[col].fillna(cleaned[col].mode().iloc[0])
-
-    # Remove exact duplicate records
-    duplicates_removed = int(cleaned.duplicated().sum())
-    if duplicates_removed > 0:
-        cleaned = cleaned.drop_duplicates().reset_index(drop=True)
-
-    outlier_report = detect_outliers_iqr(cleaned)
-
-    cleaning_report: Dict[str, object] = {
-        "initial_rows": initial_rows,
-        "final_rows": len(cleaned),
-        "missing_values_before": {k: int(v) for k, v in missing_before.items()},
-        "target_missing_dropped": target_missing,
-        "duplicates_removed": duplicates_removed,
-        "outliers_retained_iqr": outlier_report,
-    }
-    return cleaned, cleaning_report
-
-
-def split_features_target(
-    df: pd.DataFrame, target_col: str = TARGET_COLUMN
-) -> Tuple[pd.DataFrame, pd.Series]:
-    """Separate input features (X) from the target variable (y)."""
-    X = df.drop(columns=[target_col]).copy()
-    y = df[target_col].copy()
-    return X, y
-
-
-def split_train_test(
-    X: pd.DataFrame,
-    y: pd.Series,
-    test_size: float = 0.2,
-    random_state: int = RANDOM_STATE,
-) -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]:
-    """Split features and target into 80% training and 20% testing sets."""
+def split_train_test(X, y, test_size=0.2, random_state=RANDOM_STATE):
     return train_test_split(X, y, test_size=test_size, random_state=random_state)
 
-
-def build_preprocessor(
-    numerical_features: List[str],
-    categorical_features: List[str],
-    scale_numeric: bool = True,
-) -> ColumnTransformer:
-    """Create a scikit-learn ColumnTransformer for numerical and categorical features.
-
-    Fitting this transformer inside a Pipeline strictly on training data prevents
-    data leakage between train and test splits.
-    """
+def build_preprocessor(numerical_features=None, categorical_features=None, scale_numeric=True):
+    numerical_features = numerical_features or RAW_NUMERICAL_FEATURES
+    categorical_features = categorical_features or RAW_CATEGORICAL_FEATURES
     num_steps = [("imputer", SimpleImputer(strategy="median"))]
     if scale_numeric:
         num_steps.append(("scaler", StandardScaler()))
-    numeric_pipeline = Pipeline(steps=num_steps)
-
-    categorical_pipeline = Pipeline(
-        steps=[
-            ("imputer", SimpleImputer(strategy="most_frequent")),
-            (
-                "encoder",
-                OneHotEncoder(handle_unknown="ignore", drop="first", sparse_output=False),
-            ),
-        ]
-    )
-
-    preprocessor = ColumnTransformer(
-        transformers=[
-            ("num", numeric_pipeline, numerical_features),
-            ("cat", categorical_pipeline, categorical_features),
-        ],
-        remainder="drop",
-    )
-    return preprocessor
+    cat_pipe = Pipeline([("imputer", SimpleImputer(strategy="most_frequent")),
+                         ("onehot", OneHotEncoder(handle_unknown="ignore", drop="if_binary"))])
+    return ColumnTransformer([
+        ("num", Pipeline(num_steps), numerical_features),
+        ("cat", cat_pipe, categorical_features),
+    ])
