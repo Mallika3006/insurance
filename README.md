@@ -1,19 +1,20 @@
 # Indian Health Insurance Premium Prediction
 
-An end-to-end supervised Machine Learning regression project that estimates an annual health insurance premium in **Indian rupees (₹)** from an applicant's age, health history, body measurements and surgery history.
+An end-to-end supervised Machine Learning regression project that estimates an annual health insurance premium in **Indian rupees (₹)** using age, health history, body measurements and surgery history.
 
-> **Important:** This is an educational model trained on a small public Indian-oriented dataset. It is not an official quote, does not represent every Indian insurer or policy, and must not be used for underwriting or medical/financial decisions.
+> **Important:** This is an educational model trained on a small public dataset. It is not an official insurer quote and must not be used for underwriting or medical/financial decisions.
 
-## Dataset
+## Dataset — read this before training
+
 - **Dataset:** Medical Insurance Premium Prediction
-- **Source:** [Kaggle — tejashvi14/medical-insurance-premium-prediction](https://www.kaggle.com/datasets/tejashvi14/medical-insurance-premium-prediction)
-- **Size:** 986 records, 11 columns (10 inputs + target)
-- **Target:** `PremiumPrice`, used directly as rupees.
-- **No currency conversion:** the old US Medical Cost Personal dataset and USD-to-INR multiplier have been removed.
+- **Source:** [Kaggle dataset](https://www.kaggle.com/datasets/tejashvi14/medical-insurance-premium-prediction)
+- **Size reported by source:** 986 records and 11 columns.
+- **Target:** `PremiumPrice`, used directly as INR.
+- **No currency conversion:** the old US Medical Cost dataset is not compatible with this project.
 
-Download the CSV from Kaggle, rename it to `insurance.csv`, and place it in `data/insurance.csv`. See [data/README.md](data/README.md).
+Download `Medicalpremium.csv`, rename it to `insurance.csv`, and put it in `data/insurance.csv`. Follow [data/README.md](data/README.md). The application deliberately rejects the old US CSV rather than silently creating fake or irrelevant features.
 
-| Input | Description |
+| Input | Meaning |
 |---|---|
 | Age | Applicant age in years |
 | Diabetes | Diabetes indicator (0/1) |
@@ -25,39 +26,40 @@ Download the CSV from Kaggle, rename it to `insurance.csv`, and place it in `dat
 | KnownAllergies | Known allergies (0/1) |
 | HistoryOfCancerInFamily | Family cancer history (0/1) |
 | NumberOfMajorSurgeries | Number of major surgeries |
-| **PremiumPrice** | **Target premium amount (₹)** |
+| **PremiumPrice** | **Target premium (₹)** |
 
-## Workflow
-1. Load and validate the Indian dataset; normalize original column names.
-2. Inspect missing values, duplicates, summary statistics and outliers.
-3. Perform EDA for premium distribution, age, height, weight and correlations.
+## ML workflow
+
+1. Validate and normalize the original Kaggle column names.
+2. Clean invalid values, inspect missing values, duplicates and outliers.
+3. Split data into train/test sets (80:20).
 4. Engineer BMI, BMI category and surgery-history category.
-5. Split into train/test sets (80:20, random state 42).
+5. Fit imputation, scaling and one-hot encoding inside an sklearn Pipeline.
 6. Compare Linear Regression, Decision Tree, Random Forest and Gradient Boosting using 5-fold CV.
-7. Tune the selected model with GridSearchCV using training data only.
-8. Evaluate using MAE, MSE, RMSE and R².
-9. Save the full sklearn pipeline with Joblib.
-10. Use Streamlit to accept Indian health-profile inputs and display an INR estimate.
-
-## Tech stack
-Python, Pandas, NumPy, Matplotlib, Seaborn, Scikit-learn, Joblib and Streamlit.
+7. Tune the selected model with GridSearchCV on training data only.
+8. Evaluate with MAE, MSE, RMSE and R².
+9. Save and reload the complete pipeline with schema metadata.
+10. Use Streamlit to collect applicant inputs and display an INR estimate.
 
 ## Run on Windows
+
 ```cmd
+git pull origin main
 python -m venv venv
 venv\Scripts\activate
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-Download the dataset as described above, then train and launch:
+Download the Indian CSV as described above, then run:
+
 ```cmd
 python -m src.model_training
 streamlit run app.py
 ```
 
-## Evaluation
-Metrics are generated from your downloaded dataset; no accuracy or test score is hardcoded. Review `outputs/model_comparison.csv`, `outputs/tuning_comparison.json` and `outputs/error_analysis.json`.
+If you previously ran the US version locally, replace `data/insurance.csv` with the Indian CSV and delete the old `models/best_model.joblib` and `models/model_metadata.json` before retraining. The new training run recreates both files.
 
 ## Limitations
-The dataset is small (986 rows), has limited health/demographic fields and may not represent current products, all regions, age groups or insurer pricing. Its premium-label methodology should be checked against the Kaggle source. This demonstrates a regression workflow, not actual market pricing. No USD values or exchange-rate assumptions are used.
+
+The dataset is small and its premium-label methodology may not represent current Indian insurer underwriting, plan benefits, sum insured, location pricing or all customer populations. Treat the output only as an educational ML estimate.
