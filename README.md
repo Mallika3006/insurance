@@ -4,6 +4,12 @@ An end-to-end supervised Machine Learning regression project that estimates an a
 
 > **Important:** This is an educational model trained on a small public dataset. It is not an official insurer quote and must not be used for underwriting or medical/financial decisions.
 
+## Application features
+
+- **BMI calculator:** Calculates BMI automatically when height or weight is changed and shows a general adult BMI range.
+- **Premium prediction:** Uses the existing trained scikit-learn model to estimate an annual premium in INR.
+- **Health details summary:** Displays the health-history selections entered by the user. It does not diagnose conditions or provide a medical risk assessment.
+
 ## Dataset — read this before training
 
 - **Dataset:** Medical Insurance Premium Prediction
@@ -39,7 +45,7 @@ The Indian dataset is included at `data/insurance.csv`, so a fresh clone does no
 7. Tune the selected model with GridSearchCV on training data only.
 8. Evaluate with MAE, MSE, RMSE and R².
 9. Save and reload the complete pipeline with schema metadata.
-10. Use Streamlit to collect applicant inputs and display an INR estimate.
+10. Use Streamlit to calculate BMI, summarize entered health details and display an INR estimate.
 
 ## Run on Windows
 
@@ -63,4 +69,4 @@ If you previously ran the US version locally, pull the latest changes. The incom
 
 ## Limitations
 
-The dataset is small and its premium-label methodology may not represent current Indian insurer underwriting, plan benefits, sum insured, location pricing or all customer populations. Treat the output only as an educational ML estimate.
+The dataset is small and its premium-label methodology may not represent current Indian insurer underwriting, plan benefits, sum insured, location pricing or all customer populations. BMI is a general screening measure and the health details summary only repeats user-entered information. Treat all outputs only as educational information.
