@@ -111,13 +111,22 @@ def evaluate_models_for_feature_set(
     y_train: pd.Series,
     y_test: pd.Series,
     use_engineered_features: bool,
+    quick_mode: bool = False,
 ) -> Tuple[pd.DataFrame, Dict[str, Pipeline]]:
     """Train and evaluate all four candidate models for a given feature set."""
     rows = []
     fitted_pipelines: Dict[str, Pipeline] = {}
     feature_label = "With Engineered Features" if use_engineered_features else "Raw Features Only"
 
-    for name, estimator in get_candidate_models(RANDOM_STATE).items():
+    candidates = get_candidate_models(RANDOM_STATE)
+    if quick_mode:
+        # The app only needs a responsive first-run model; the CLI retains the full comparison.
+        candidates = {name: candidates[name] for name in ["Linear Regression", "Random Forest Regressor", "Gradient Boosting Regressor"]}
+        candidates["Random Forest Regressor"].set_params(n_estimators=80, n_jobs=1)
+        candidates["Gradient Boosting Regressor"].set_params(n_estimators=80)
+
+    cv_folds = 3 if quick_mode else 5
+    for name, estimator in candidates.items():
         pipeline = build_model_pipeline(estimator, use_engineered_features=use_engineered_features)
 
         # 5-fold cross-validation strictly on training data
@@ -125,9 +134,9 @@ def evaluate_models_for_feature_set(
             pipeline,
             X_train,
             y_train,
-            cv=5,
+            cv=cv_folds,
             scoring="neg_root_mean_squared_error",
-            n_jobs=-1,
+            n_jobs=1 if quick_mode else -1,
         )
         cv_rmse = round(float(-cv_scores.mean()), 2)
 
@@ -157,6 +166,7 @@ def train_and_save_pipeline(
     data_path: Path | str = DEFAULT_DATA_PATH,
     model_path: Path | str = DEFAULT_MODEL_PATH,
     run_eda_plots: bool = True,
+    quick_mode: bool = False,
 ) -> Dict[str, object]:
     """Execute the full ML workflow: load, clean, EDA, split, compare, tune, evaluate, and save."""
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
@@ -176,23 +186,29 @@ def train_and_save_pipeline(
     X_train, X_test, y_train, y_test = split_train_test(X, y, test_size=0.2, random_state=RANDOM_STATE)
 
     # Step 5 & 7: Compare models with raw features vs. engineered features
-    raw_results_df, raw_pipelines = evaluate_models_for_feature_set(
-        X_train, X_test, y_train, y_test, use_engineered_features=False
-    )
-    eng_results_df, eng_pipelines = evaluate_models_for_feature_set(
-        X_train, X_test, y_train, y_test, use_engineered_features=True
-    )
-
-    fe_comparison_df = pd.concat([raw_results_df, eng_results_df], ignore_index=True)
-    fe_comparison_df.to_csv(OUTPUTS_DIR / "feature_engineering_comparison.csv", index=False)
-
-    # Select whether engineered features improve best CV RMSE (no test leakage in selection)
-    best_raw_cv = float(raw_results_df["CV_RMSE"].min())
-    best_eng_cv = float(eng_results_df["CV_RMSE"].min())
-    use_engineered = best_eng_cv <= best_raw_cv
-
-    selected_comparison_df = eng_results_df if use_engineered else raw_results_df
-    selected_pipelines = eng_pipelines if use_engineered else raw_pipelines
+    if quick_mode:
+        # Fast first-run path used by Streamlit. Full raw-vs-engineered comparison
+        # and extensive tuning remain available through `python -m src.model_training`.
+        selected_comparison_df, selected_pipelines = evaluate_models_for_feature_set(
+            X_train, X_test, y_train, y_test, use_engineered_features=True, quick_mode=True
+        )
+        use_engineered = True
+        selected_comparison_df.to_csv(OUTPUTS_DIR / "model_comparison.csv", index=False)
+        selected_comparison_df.to_csv(OUTPUTS_DIR / "feature_engineering_comparison.csv", index=False)
+    else:
+        raw_results_df, raw_pipelines = evaluate_models_for_feature_set(
+            X_train, X_test, y_train, y_test, use_engineered_features=False
+        )
+        eng_results_df, eng_pipelines = evaluate_models_for_feature_set(
+            X_train, X_test, y_train, y_test, use_engineered_features=True
+        )
+        fe_comparison_df = pd.concat([raw_results_df, eng_results_df], ignore_index=True)
+        fe_comparison_df.to_csv(OUTPUTS_DIR / "feature_engineering_comparison.csv", index=False)
+        best_raw_cv = float(raw_results_df["CV_RMSE"].min())
+        best_eng_cv = float(eng_results_df["CV_RMSE"].min())
+        use_engineered = best_eng_cv <= best_raw_cv
+        selected_comparison_df = eng_results_df if use_engineered else raw_results_df
+        selected_pipelines = eng_pipelines if use_engineered else raw_pipelines
     selected_comparison_df.to_csv(OUTPUTS_DIR / "model_comparison.csv", index=False)
 
     # Select best candidate model strictly using training CV RMSE
@@ -205,13 +221,21 @@ def train_and_save_pipeline(
     base_estimator = get_candidate_models(RANDOM_STATE)[best_model_name]
     tuning_pipeline = build_model_pipeline(base_estimator, use_engineered_features=use_engineered)
     param_grid = get_param_grid(best_model_name)
+    if quick_mode:
+        quick_grids = {
+            "Random Forest Regressor": {"model__n_estimators": [60, 100], "model__max_depth": [None, 8]},
+            "Gradient Boosting Regressor": {"model__n_estimators": [60, 100], "model__learning_rate": [0.05, 0.1]},
+            "Linear Regression": {"model__fit_intercept": [True]},
+            "Decision Tree Regressor": {"model__max_depth": [4, 8]},
+        }
+        param_grid = quick_grids[best_model_name]
 
     grid_search = GridSearchCV(
         estimator=tuning_pipeline,
         param_grid=param_grid,
-        cv=5,
+        cv=3 if quick_mode else 5,
         scoring="neg_root_mean_squared_error",
-        n_jobs=-1,
+        n_jobs=1 if quick_mode else -1,
         refit=True,
     )
     grid_search.fit(X_train, y_train)
