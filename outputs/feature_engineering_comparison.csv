@@ -1,0 +1,9 @@
+Feature Set,Model,CV_RMSE,MAE,MSE,RMSE,R2
+Raw Features Only,Gradient Boosting Regressor,4758.19,2517.47,18218239.92,4268.28,0.9009
+Raw Features Only,Random Forest Regressor,4955.22,2632.5,22014742.66,4691.99,0.8802
+Raw Features Only,Decision Tree Regressor,6729.94,2804.81,34953028.96,5912.11,0.8098
+Raw Features Only,Linear Regression,6113.88,4177.05,35478020.68,5956.34,0.8069
+With Engineered Features,Linear Regression,4464.81,2251.0,16873230.6,4107.7,0.9082
+With Engineered Features,Gradient Boosting Regressor,4765.2,2457.97,18401438.19,4289.69,0.8999
+With Engineered Features,Random Forest Regressor,4974.2,2664.86,22062791.7,4697.1,0.8799
+With Engineered Features,Decision Tree Regressor,6701.62,2931.74,38624541.99,6214.86,0.7898

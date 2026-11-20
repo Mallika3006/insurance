@@ -1,0 +1,67 @@
+{
+  "mean_residual": -69.85,
+  "median_abs_error": 1356.21,
+  "p90_abs_error": 2451.72,
+  "max_abs_error": 18153.38,
+  "mae_by_smoker": {
+    "no": 2345.17,
+    "yes": 1924.58
+  },
+  "top_5_largest_errors": [
+    {
+      "age": 32,
+      "sex": "female",
+      "bmi": 17.765,
+      "children": 2,
+      "smoker": "yes",
+      "region": "northwest",
+      "actual_charges": 32734.1863,
+      "predicted_charges": 14580.81,
+      "abs_error": 18153.38
+    },
+    {
+      "age": 45,
+      "sex": "female",
+      "bmi": 27.645,
+      "children": 1,
+      "smoker": "no",
+      "region": "northwest",
+      "actual_charges": 28340.18885,
+      "predicted_charges": 10335.35,
+      "abs_error": 18004.84
+    },
+    {
+      "age": 35,
+      "sex": "female",
+      "bmi": 38.095,
+      "children": 2,
+      "smoker": "no",
+      "region": "northeast",
+      "actual_charges": 24915.04626,
+      "predicted_charges": 7767.91,
+      "abs_error": 17147.14
+    },
+    {
+      "age": 43,
+      "sex": "male",
+      "bmi": 27.8,
+      "children": 0,
+      "smoker": "yes",
+      "region": "southwest",
+      "actual_charges": 37829.7242,
+      "predicted_charges": 21051.76,
+      "abs_error": 16777.96
+    },
+    {
+      "age": 33,
+      "sex": "female",
+      "bmi": 35.53,
+      "children": 0,
+      "smoker": "yes",
+      "region": "northwest",
+      "actual_charges": 55135.40209,
+      "predicted_charges": 38532.98,
+      "abs_error": 16602.42
+    }
+  ]
+}
