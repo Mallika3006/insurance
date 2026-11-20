@@ -1,5 +1,4 @@
-"""Core source package for Health Insurance Premium Prediction."""
-
+"""Core paths and schema for the Indian health insurance premium project."""
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -13,5 +12,11 @@ EVAL_OUTPUT_DIR = OUTPUTS_DIR / "evaluation"
 ASSETS_DIR = PROJECT_ROOT / "assets"
 
 RANDOM_STATE = 42
-TARGET_COLUMN = "charges"
-REQUIRED_COLUMNS = ["age", "sex", "bmi", "children", "smoker", "region", "charges"]
+TARGET_COLUMN = "premium_price"
+RAW_NUMERICAL_FEATURES = ["age", "height_cm", "weight_kg"]
+RAW_CATEGORICAL_FEATURES = [
+    "diabetes", "blood_pressure_problems", "any_transplants",
+    "any_chronic_diseases", "known_allergies",
+    "family_cancer_history", "major_surgeries",
+]
+REQUIRED_COLUMNS = RAW_NUMERICAL_FEATURES + RAW_CATEGORICAL_FEATURES + [TARGET_COLUMN]
