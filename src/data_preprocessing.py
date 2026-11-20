@@ -72,7 +72,7 @@ def clean_dataset(df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, object]]:
     cleaned = cleaned.drop_duplicates().reset_index(drop=True)
     report = {"rows_before": before, "rows_after": len(cleaned),
               "duplicates_removed": before - len(cleaned) - int(df[TARGET_COLUMN].isna().sum()) if TARGET_COLUMN in df else 0,
-              "missing_values_after_cleaning": cleaned.isna().sum().to_dict(),
+              "missing_values_after_cleaning": {k: int(v) for k, v in cleaned.isna().sum().items()},
               "outliers": detect_outliers_iqr(cleaned)}
     return cleaned, report
 
