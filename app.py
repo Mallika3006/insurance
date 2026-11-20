@@ -1,6 +1,5 @@
 """Streamlit UI for Indian Health Insurance Premium Prediction."""
 import json
-from pathlib import Path
 
 import streamlit as st
 
@@ -62,8 +61,9 @@ page = st.sidebar.radio(
 if page == "Home":
     st.subheader("Estimate an annual health insurance premium")
     st.write(
-        "Enter basic measurements and health details to calculate BMI, "
-        "view a simple summary, and estimate an annual premium."
+        "Enter all applicant details together. The application will calculate "
+        "BMI, show a summary of the entered health details, and estimate an "
+        "annual premium in one submission."
     )
     st.info(
         "This is a learning/portfolio project, not an insurer quote or financial "
@@ -73,70 +73,89 @@ if page == "Home":
 
 elif page == "Predict Premium":
     st.subheader("Applicant details")
-
-    # Keep height and weight outside the form so BMI updates automatically.
-    st.markdown("#### 1. BMI calculator")
-    height_col, weight_col = st.columns(2)
-    height = height_col.number_input(
-        "Height (cm)", min_value=120.0, max_value=220.0, value=165.0, step=1.0
-    )
-    weight = weight_col.number_input(
-        "Weight (kg)", min_value=25.0, max_value=250.0, value=65.0, step=1.0
-    )
-    bmi, bmi_category = calculate_bmi(height, weight)
-    bmi_col, category_col = st.columns(2)
-    bmi_col.metric("Your BMI", f"{bmi:.1f}")
-    category_col.metric("General adult BMI range", bmi_category)
-    st.caption(
-        "BMI is a height-to-weight screening measure, not a diagnosis. "
-        "Adult BMI ranges are general guidance and may not suit everyone."
+    st.write(
+        "Complete the form once. BMI, your health details summary and the "
+        "premium estimate will appear together after submission."
     )
 
-    st.divider()
-    st.markdown("#### 2. Health details")
-    with st.form("premium_form"):
-        age = st.number_input("Age (years)", 18, 100, 30)
-        labels = {
-            "diabetes": "Diabetes",
-            "blood_pressure_problems": "Blood pressure problems",
-            "any_transplants": "Any organ transplant",
-            "any_chronic_diseases": "Any chronic disease",
-            "known_allergies": "Known allergies",
-            "family_cancer_history": "Family history of cancer",
-        }
+    labels = {
+        "diabetes": "Diabetes",
+        "blood_pressure_problems": "Blood pressure problems",
+        "any_transplants": "Any organ transplant",
+        "any_chronic_diseases": "Any chronic disease",
+        "known_allergies": "Known allergies",
+        "family_cancer_history": "Family history of cancer",
+    }
+
+    with st.form("applicant_details_form"):
+        st.markdown("#### Personal and body measurements")
+        col1, col2, col3 = st.columns(3)
+        age = col1.number_input("Age (years)", 18, 100, 30)
+        height = col2.number_input(
+            "Height (cm)", min_value=120.0, max_value=220.0,
+            value=165.0, step=1.0
+        )
+        weight = col3.number_input(
+            "Weight (kg)", min_value=25.0, max_value=250.0,
+            value=65.0, step=1.0
+        )
+
+        st.markdown("#### Health history")
         values = {}
         cols = st.columns(3)
         for i, (key, label) in enumerate(labels.items()):
-            values[key] = cols[i % 3].selectbox(label, ["No", "Yes"], key=key)
+            values[key] = cols[i % 3].selectbox(
+                label, ["No", "Yes"], key=key
+            )
+
         surgeries = st.selectbox(
             "Number of major surgeries", [0, 1, 2, 3, 4, 5]
         )
+
         submitted = st.form_submit_button(
-            "Generate summary and predict premium", type="primary"
+            "Calculate BMI and predict premium", type="primary",
+            use_container_width=True
         )
 
     if submitted:
-        st.markdown("#### 3. Your health details summary")
+        # Calculate BMI and present all results together after one submission.
+        bmi, bmi_category = calculate_bmi(height, weight)
+
+        st.divider()
+        st.subheader("Your results")
+
+        bmi_col, category_col, age_col = st.columns(3)
+        bmi_col.metric("Calculated BMI", f"{bmi:.1f}")
+        category_col.metric("General adult BMI range", bmi_category)
+        age_col.metric("Age", f"{age} years")
+
+        st.caption(
+            "BMI is a general height-to-weight screening measure, not a "
+            "medical diagnosis. Adult BMI ranges are general guidance."
+        )
+
+        st.markdown("#### Health details summary")
+        summary_col1, summary_col2 = st.columns(2)
+        summary_col1.write(f"**Height:** {height:.0f} cm")
+        summary_col1.write(f"**Weight:** {weight:.1f} kg")
+        summary_col2.write(f"**Major surgeries reported:** {surgeries}")
+
         reported_details = [
             label for key, label in labels.items() if values[key] == "Yes"
         ]
-
-        summary_col1, summary_col2 = st.columns(2)
-        summary_col1.metric("Age", f"{age} years")
-        summary_col2.metric("Major surgeries reported", str(surgeries))
-
         if reported_details:
-            st.write("You selected **Yes** for:")
+            st.write("**Health-history items selected:**")
             for detail in reported_details:
                 st.write(f"- {detail}")
         else:
             st.write("No listed health-history items were selected.")
 
         st.caption(
-            "This summary only repeats the information you entered. "
-            "It is not a medical assessment or diagnosis."
+            "This summary only repeats the information entered. It is not a "
+            "medical diagnosis or medical risk assessment."
         )
 
+        st.markdown("#### Estimated annual premium")
         try:
             result = predict_insurance_charge(
                 age,
@@ -151,7 +170,6 @@ elif page == "Predict Premium":
                 surgeries,
                 model=get_model(),
             )
-            st.markdown("#### 4. Premium prediction")
             st.success(
                 f"Estimated annual premium: "
                 f"₹{result['estimated_annual_premium_inr']:,.0f}"
