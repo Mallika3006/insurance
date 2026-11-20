@@ -14,6 +14,9 @@ VALID_SEX = ("female", "male")
 VALID_SMOKER = ("no", "yes")
 VALID_REGIONS = ("northeast", "northwest", "southeast", "southwest")
 
+# Reference USD-to-INR rate used for display conversion (20 Nov 2026).
+USD_TO_INR_RATE = 93.30
+
 
 def validate_user_input(
     age: int | float,
@@ -97,6 +100,9 @@ def predict_insurance_charge(
     estimated_charge = round(max(0.0, raw_prediction), 2)
 
     return {
+        # Keep the model output in USD and expose a converted INR display value.
         "estimated_annual_charges": estimated_charge,
+        "estimated_annual_charges_inr": round(estimated_charge * USD_TO_INR_RATE, 2),
+        "conversion_rate_usd_to_inr": USD_TO_INR_RATE,
         "validated_input": cleaned_input,
     }
