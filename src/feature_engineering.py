@@ -14,7 +14,7 @@ def add_engineered_features(df: pd.DataFrame) -> pd.DataFrame:
     out["bmi_category"] = pd.cut(out["bmi"], [-float("inf"), 18.5, 25, 30, float("inf")],
                                  labels=["underweight", "normal", "overweight", "obese"]).astype(object)
     out["surgery_history"] = out["major_surgeries"].apply(
-        lambda n: "none" if n == 0 else ("one" if n == 1 else "multiple")
+        lambda n: "unknown" if pd.isna(n) else ("none" if n == 0 else ("one" if n == 1 else "multiple"))
     )
     return out
 
